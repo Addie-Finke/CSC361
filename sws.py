@@ -1,4 +1,3 @@
-import impacket
 import sys
 import select
 import socket
@@ -95,7 +94,9 @@ def process_new_readable_connection(s, connection, address, inputs, outputs):
                     del request_message[s]
                     return False
             else:
-                #print that it was an invalid message and close the connection
+                badReq = "HTTP/1.0 400 Bad Request"
+                badReq = badReq.encode()
+                connection.send(badReq)
                 s.close()
                 return False
     print("\033[1;32m[LOG]\033[1;0m: Connection timed out")
