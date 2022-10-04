@@ -62,6 +62,35 @@ def create_server(ip, port) -> socket.socket:
     return server
 
 
+# Takes a string in and parses the HTTP request in the string
+#
+# @param The http request to parse
+# @returns: A touple containing a string representing the file to be found or and a boolean of if it is a persistent connection
+# @except: Throws an exception if the request is invalid
+def parse_http_request(request) -> (str, bool):
+    filename = ""
+    connection = False
+    
+    if (request[-9:-1] == "\\r\\n\\r\\n" or request[-5:-1] == "\\n\\n") and request[0:4] == "GET " and "HTTP/1.0\\r\\n" in request:
+        HTTPindex = request.find("HTTP/1.0\\r\\n")
+        filename = request[4:HTTPindex]
+        conn = request[HTTPindex+12: -9]
+        conn = conn.lower()
+        if len(conn) > 0 and conn.startswith("connection"):
+            colon = conn.find(":")
+            if conn[colon:] == ":keep-alive" or conn[colon:] == ": keep-alive":
+                connection = True
+            elif conn[colon:] == ":close" or conn[colon:] == ": close":
+                pass
+            else: 
+                raise Exception("Invalid HTTP request")
+        elif len(con) == 0:
+            pass 
+        else:
+            raise Exception("Invalid HTTP request")
+        return (filename, connection)
+    else:
+        raise Exception("Invalid http request")
 # Takes a new connection and processes it, closing when the connection is closed
 #
 #@param: Server: The server to process the request from
@@ -77,27 +106,22 @@ def process_new_readable_connection(s, connection, address, inputs, outputs):
             msg = connection.recv(1024).decode()
         except:
             pass
-
-        if msg:
-            print("msg exists")
-            message += msg
-            print(msg[-5:-1])
-            if msg[-9:-1] == "\r\n\r\n" or msg[-3:-1] == "\n\n":
-                #deal with the message, move to persistant if it has keep alive and otherwise close connection
-                print("msg format correct")
-                if s not in outputs:
-                    outputs.append(s)
+        if msg != None:
+            try:
+                message += msg
+                req = parse_http_request(message)
+                if req[1] == True:
+                    #serve req but stay open
+                    print(req[0])
                 else:
-                    outputs.remove(s)
-                    inputs.remove(s)
-                    s.close()
-                    del request_message[s]
-                    return False
-            else:
+                    #serve req and close
+                    print("servering req")
+                    connection.close()
+            except:
                 badReq = "HTTP/1.0 400 Bad Request"
                 badReq = badReq.encode()
                 connection.send(badReq)
-                s.close()
+                connection.close()
                 return False
     print("\033[1;32m[LOG]\033[1;0m: Connection timed out")
     s.close()
@@ -117,16 +141,16 @@ def main():
     if (server := create_server(ip, port)) == None:
         exit(0)
     
-    inputs = [server]
-    outputs = []
-    request_message = {}
+
     while True:
+        inputs = [server]
+        outputs = []
+        request_message = {}
         readable, writeable, exception = select.select(inputs, outputs, inputs)
         for s in readable:
             if s is server:
                 connection, address = s.accept()
                 connection.setblocking(0)
-                print("new connection")
                 inputs.append(connection)
                 request_message[connection] = queue.Queue()
                 process_new_readable_connection(s, connection, address, inputs, outputs)      
