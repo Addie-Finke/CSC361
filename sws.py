@@ -67,46 +67,44 @@ def log(response, request, connection, address):
     t = time.localtime()
     day = ""
     month = ""
-    match t.tm_wday:
-        case 0:
-            day = "Mon"
-        case 1:
-            day = "Tue"
-        case 2:
-            day = "Wed"
-        case 3:
-            day = "Thu"
-        case 4: 
-            day = "Fri"
-        case 5:
-            day = "Sat"
-        case 6:
-            day = "Sun"
-    match t.tm_mon:
-        case 0:
-            month = "Jan"
-        case 1:
-            month = "Feb"
-        case 2:
-            month = "Mar"
-        case 3: 
-            month = "Apr"
-        case 4:
-            month = "May"
-        case 5:
-            month = "Jun"
-        case 6:
-            month = "Jul"
-        case 7:
-            month = "Aug"
-        case 8:
-            month = "Sep"
-        case 9:
-            month = "Oct"
-        case 10: 
-            month = "Nov"
-        case 11:
-            month = "Dec"
+    if t.tm_wday == 0:
+        day = "Mon"
+    elif t.tm_wday == 1:
+        day = "Tue"
+    elif t.tm_wday == 2:
+        day = "Wed"
+    elif t.tm_wday == 3:
+        day = "Thu"
+    elif t.tm_wday == 4: 
+        day = "Fri"
+    elif t.tm_wday == 5:
+        day = "Sat"
+    elif t.tm_wday == 6:
+        day = "Sun"
+    if t.tm_mon == 0:
+        month = "Jan"
+    elif t.tm_mon == 1:
+        month = "Feb"
+    elif t.tm_mon == 2:
+        month = "Mar"
+    elif t.tm_mon == 3: 
+        month = "Apr"
+    elif t.tm_mon == 4:
+        month = "May"
+    elif t.tm_mon == 5:
+        month = "Jun"
+    elif t.tm_mon == 6:
+        month = "Jul"
+    elif t.tm_mon == 7:
+        month = "Aug"
+    elif t.tm_mon == 8:
+        month = "Sep"
+    elif t.tm_mon == 9:
+        month = "Oct"
+    elif t.tm_mon == 10: 
+        month = "Nov"
+    elif t.tm_mon == 11:
+        month = "Dec"
     request = request.replace("\r\n", "")
     request = request.strip()
     print("{} {} {} {}:{}:{} {} {}: {}:{} {};{}".format(day, month, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec, time.tzname[0], t.tm_year, address[0], address[1], request, response))
@@ -165,7 +163,7 @@ def parse_http_request(request) -> (str, bool):
 # Takes a new connection and processes it, closing when the connection is closed
 #
 #@param: Server: The server to process the request from
-def process_new_readable_connection(s, connection, address, inputs, outputs):
+def process_new_readable_connection(s, connection, address, inputs):
     id = os.fork()
     message = ""
     messageQue = []
@@ -183,10 +181,12 @@ def process_new_readable_connection(s, connection, address, inputs, outputs):
 
             message += msg
             messageQue = message.split("\r\n\r\n")
+            msg = ""
+            message = ""
             for x in range(len(messageQue)):
                 messageQue[x] = messageQue[x].strip()
                 
-            while len(messageQue) >0:
+            while len(messageQue) > 0:
                 try:
                     currMsg = messageQue.pop(0)
                     req = parse_http_request(currMsg)
@@ -210,6 +210,8 @@ def process_new_readable_connection(s, connection, address, inputs, outputs):
                             connection.send(badReq)
                         connection.close()
                         exit(0)
+                except SystemExit:
+                    exit(0)
                 except:
                     badReq = "HTTP/1.0 400 Bad Request\r\n\r\n"
                     log("HTTP/1.0 400 Bad Request", currMsg, connection, address)
@@ -246,7 +248,7 @@ def main():
                 connection.setblocking(0)
                 inputs.append(connection)
                 try:
-                    process_new_readable_connection(s, connection, address, inputs, outputs)      
+                    process_new_readable_connection(s, connection, address, inputs)      
                 except:
                     exit(0)
 
